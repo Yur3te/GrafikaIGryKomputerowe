@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+<meta charset="UTF-8">
+<title>Toaletowa karuzela</title>
+<style>
+    body { margin: 0; overflow: hidden; background-color: black; }
+</style>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(60, window.innerWidth/window.innerHeight, 0.1, 200);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.shadowMap.enabled = true;
+document.body.appendChild(renderer.domElement);
+
+const controls = new OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true;
+camera.position.set(0, 5, 25);
+
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+const sun = new THREE.DirectionalLight(0xffffff, 1);
+sun.position.set(10, 20, 10);
+sun.castShadow = true;
+scene.add(sun);
+
+const carousel = new THREE.Group();
+scene.add(carousel);
+
+const polyGeo = new THREE.CylinderGeometry(12, 12, 0.5, 12);
+const polyMat = new THREE.MeshStandardMaterial({ color: 0x800080, roughness: 0.8 });
+
+const base = new THREE.Mesh(polyGeo, polyMat);
+base.position.y = -4;
+carousel.add(base);
+
+const roofGeo = new THREE.CylinderGeometry(0, 12, 4, 12);
+const roof = new THREE.Mesh(roofGeo, polyMat);
+roof.position.y = 6;
+carousel.add(roof);
+
+const earthGeo = new THREE.SphereGeometry(3.5, 32, 32);
+const textureLoader = new THREE.TextureLoader();
+const earthMat = new THREE.MeshStandardMaterial({ 
+    map: textureLoader.load('resources/earth.jpg'),
+    roughness: 1.0
+});
+const earth = new THREE.Mesh(earthGeo, earthMat);
+carousel.add(earth);
+
+
+
+const numtoilets = 6;
+const poleGeo = new THREE.CylinderGeometry(0.2, 0.2, 8, 16);
+const poleMat = new THREE.MeshStandardMaterial({ color: 0xDAA520, metalness: 0.8, roughness: 0.2 });
+
+const toilets = [];
+
+for (let i = 0; i < numtoilets; i++) {
+    const angle = (i * 2 * Math.PI) / numtoilets;
+    const radius = 9;
+    const pole = new THREE.Mesh(poleGeo, poleMat);
+    pole.position.set(radius * Math.cos(angle), 0, radius * Math.sin(angle));
+    carousel.add(pole);
+}
+
+const loader = new GLTFLoader();
+
+loader.load('resources/Toilet.glb', (gltf) => {
+    
+    const loadedModel = gltf.scene;
+
+    for (let i = 0; i < numtoilets; i++) {
+        const angle = (i * 2 * Math.PI) / numtoilets;
+        const radius = 9;
+        const toiletClone = loadedModel.clone();
+
+        toiletClone.scale.set(5.0, 5.0, 5.0); 
+
+        toiletClone.position.set(radius * Math.cos(angle), -2, radius * Math.sin(angle));
+        
+        toiletClone.rotation.y = -angle; 
+        toiletClone.translateZ(1.5);
+
+        toilets.push(toiletClone);
+        carousel.add(toiletClone);
+    }
+}, undefined, (error) => {
+    console.error('Wystąpił błąd podczas ładowania modelu:', error);
+});
+
+
+const clock = new THREE.Clock();
+
+function animate() {
+    requestAnimationFrame(animate);
+    
+    const delta = clock.getDelta();
+    const elapsed = clock.getElapsedTime();
+
+    controls.update();
+
+    carousel.rotation.y -= delta * 1.0; 
+    
+    for (let i = 0; i < toilets.length; i++) {
+        const offset = i * (Math.PI / 2);
+        toilets[i].position.y = -2.6 + Math.sin(elapsed * 2 + offset) * 1.1;
+    }
+
+    renderer.render(scene, camera);
+}
+animate();
+
+window.addEventListener('resize', () => {
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+    renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+</head>
+<body>
+</body>
+</html>
