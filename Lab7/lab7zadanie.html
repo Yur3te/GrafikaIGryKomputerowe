@@ -24,6 +24,9 @@
 
 <script type="x-shader/x-vertex" id="vshader-source">
     attribute vec2 a_coords; // vertex position in standard canvas pixel coords
+    attribute vec3 a_color;  
+    varying vec3 v_color;
+
     uniform float u_width;   // width of canvas
     uniform float u_height;  // height of canvas
     uniform float u_pointSize; 
@@ -35,6 +38,8 @@
         
         gl_Position = vec4(x, y, 0.0, 1.0);
         gl_PointSize = u_pointSize;
+
+        v_color = a_color;
     }
 </script>
 
@@ -44,8 +49,27 @@
     #else
        precision mediump float;
     #endif
+
+    varying vec3 v_color;
+    uniform int u_style;
+
     void main() {
-        gl_FragColor = vec4(1.0, 0.0, 0.0, 1.0);
+        float dist = distance(vec2(0.5), gl_PointCoord); 
+
+        if (u_style == 1) {
+            gl_FragColor = vec4(v_color, 1.0);
+        } else if (u_style == 2) {
+            if (dist > 0.5) {
+                discard;
+            }
+            gl_FragColor = vec4(v_color, 1.0);
+        } else if (u_style == 3) {
+            if (dist > 0.5) {
+                discard;
+            }
+            float alpha = 1.0 - (dist * 2.0);
+            gl_FragColor = vec4(v_color, alpha);
+        }
     }
 </script>
 
@@ -64,16 +88,23 @@ var a_coords_loc;       // Location of the a_coords attribute variable in the sh
 
 var a_coords_buffer;    // Buffer to hold the values for a_coords (coordinates for the points)
 
+var a_color_loc;        
+var u_style_loc;        
+var a_color_buffer;     
+
 var POINT_COUNT = 30;   // How many points to draw.
 var POINT_SIZE = 64;    // Size in pixel of the square drawn for each point.
 
 var positions = new Float32Array( 2*POINT_COUNT );  // Position data for points.
 var velocities = new Float32Array( 2*POINT_COUNT ); // Velocity data for points.
+var colors = new Float32Array( 3*POINT_COUNT );
       // Note: The xy coords for point number i are in positions[2*i],position[2*i+1].
       // The xy velocity compontents for point number i are in velocities[2*i],velociteis[2*i+1].
       // Position coordinates are in pixels, and velocity components are in pixels per frame.
       
 var isRunning = true;  // The animation runs when this is true; its value is toggled by the space bar.
+var useRandomColors = true;
+var currentStyle = 1;
 
 
 /**
@@ -114,6 +145,10 @@ function createData() {
         var angle = 2*Math.PI*Math.random();
         velocities[2*i] = speed*Math.sin(angle);
         velocities[2*i+1] = speed*Math.cos(angle);
+
+        colors[3*i] = Math.random();
+        colors[3*i+1] = Math.random();
+        colors[3*i+2] = Math.random();
     }
 } // end createData()
 
@@ -161,6 +196,21 @@ function doKey(evt) {
            requestAnimationFrame(frame);  // restart the animation
         }
     }
+
+    if (key == 67) { 
+        useRandomColors = !useRandomColors;
+        if (useRandomColors) {
+            gl.enableVertexAttribArray(a_color_loc);
+        } else {
+            gl.disableVertexAttribArray(a_color_loc);
+            gl.vertexAttrib3f(a_color_loc, 1, 0, 0);
+        }
+        if (!isRunning) render();
+    }
+    
+    if (key == 49) { currentStyle = 1; gl.uniform1i(u_style_loc, currentStyle); if (!isRunning) render(); }
+    if (key == 50) { currentStyle = 2; gl.uniform1i(u_style_loc, currentStyle); if (!isRunning) render(); }
+    if (key == 51) { currentStyle = 3; gl.uniform1i(u_style_loc, currentStyle); if (!isRunning) render(); }
 } // end doKey();
 
 
@@ -176,17 +226,31 @@ function initGL() {
     u_height_loc = gl.getUniformLocation(prog,"u_height");
     u_pointSize_loc = gl.getUniformLocation(prog,"u_pointSize");
     a_coords_loc = gl.getAttribLocation(prog,"a_coords");
+
+    a_color_loc = gl.getAttribLocation(prog,"a_color");
+    u_style_loc = gl.getUniformLocation(prog,"u_style");
     
     /* Assign initial values to uniforms. */    
     
     gl.uniform1f(u_width_loc, canvas.width);
     gl.uniform1f(u_height_loc, canvas.height);
     gl.uniform1f(u_pointSize_loc, POINT_SIZE);
+
+    gl.uniform1i(u_style_loc, currentStyle);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
     
     /* Create and configure buffers for the attributes. */
     
     a_coords_buffer = gl.createBuffer();
     gl.enableVertexAttribArray(a_coords_loc); // data from the attribute will come from a buffer.
+
+
+    a_color_buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, a_color_buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, colors, gl.STATIC_DRAW);
+    gl.vertexAttribPointer(a_color_loc, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(a_color_loc);
     
     /* Configure other WebGL options. */
     
