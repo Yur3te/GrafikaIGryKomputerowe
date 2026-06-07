@@ -94,8 +94,9 @@
 </script>
 
 
-<script src="resources/gl-matrix.js"></script>
-<script src="resources/basic-object-models-IFS.js"></script>
+<script src="teapot-model-IFS.js"></script>
+<script src="gl-matrix.js"></script>
+<script src="basic-object-models-IFS.js"></script>
 <script>
 
 "use strict";
@@ -119,7 +120,7 @@ var normalMatrix = mat3.create();  // matrix for transforming normal vectors
 
 var frameNumber = 0;  // frame number during animation
 
-var cone, cylinder, cube;  // Basic objects, created using function createModel and basic-object-models-IFS.js.
+var cone, cylinder, cube, teapot;  // Basic objects, created using function createModel and basic-object-models-IFS.js.
                            // The cube is 1 unit on each side and is centered at (0,0,0).
                            // the cone and cylinder have diameter 1 and height 1 and are centered at 
                            //     (0,0,0), with their axes aligned along the z-axis.
@@ -131,10 +132,30 @@ var currentColor = [1,1,1];   // The current diffuse color; render() functions i
                               // Specular color properties, which don't change, are set in initGL()
 
 var rotateX = 0, rotateY = 0;   // Overal rotation of model, in radians, set by mouse dragging.                          
-                               
-/**
- * Draws the image, which consists of either the "world" or a closeup of the "car".
- */
+ 
+
+function drawBlade() {
+   pushMatrix();
+    currentColor = [200/255, 1, 252/255];
+    mat4.rotateY(modelview, modelview, Math.PI /2);
+    mat4.translate(modelview, modelview, [0, 0, 2.7]);
+    mat4.scale(modelview, modelview, [0.07, 0.7, 4.1]);
+    cone.render();
+    popMatrix();
+
+    pushMatrix();
+    currentColor = [200/255, 1, 252/255];
+    mat4.translate(modelview, modelview, [0.3, 0, 0]);
+    mat4.rotateY(modelview, modelview, Math.PI /2);
+    mat4.rotateX(modelview, modelview, Math.PI );
+	mat4.scale(modelview, modelview,[0.07, 0.7, 0.7]);
+    cone.render();
+    popMatrix();
+
+}
+
+var numberOfBlades = 3;
+
 function draw() {
     gl.clearColor(0,0,0,1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -147,8 +168,48 @@ function draw() {
     mat4.rotateX(modelview,modelview,rotateX);
     mat4.rotateY(modelview,modelview,rotateY);
     
-    currentColor = [1, 0.6, 1]; // light magenta
-    cube.render();  // As an example, show an unscaled cube.
+    // Podstawa wiatraka
+    pushMatrix();
+    currentColor = [1.0, 0.1, 0.1];
+    mat4.translate(modelview, modelview, [0, -5, 0]);
+    mat4.scale(modelview, modelview, [6, 1, 6]);
+    cube.render();
+    popMatrix();
+    
+    // Czajniczek na podstawie
+    pushMatrix();
+    currentColor = [0.2, 0.8, 0.2];
+    mat4.translate(modelview, modelview, [1.2, -4.1, 2.0])
+    mat4.scale(modelview, modelview, [0.05, 0.05, 0.05]);
+    if (teapot) {
+        teapot.render();
+    }
+    popMatrix();
+
+    // Słup wiatraka
+    pushMatrix();
+    currentColor = [0.8, 0.5, 0.2];
+    mat4.translate(modelview, modelview, [0, 0, 0]);
+    mat4.rotateX(modelview, modelview, -Math.PI / 2);
+    mat4.scale(modelview, modelview, [0.5, 0.5, 10]);
+    cylinder.render();
+    popMatrix();
+
+    pushMatrix();
+    currentColor = [0.5, 0.9, 1.0];
+    mat4.translate(modelview, modelview, [0, 5, 0.3]);
+    
+    // Animowane łopatki
+    var speed = frameNumber * 0.03;
+    mat4.rotateZ(modelview, modelview, speed);
+
+    for (var i = 0; i < numberOfBlades; i++) {
+        pushMatrix();
+        mat4.rotateZ(modelview, modelview, i * (2 * Math.PI / numberOfBlades));
+        drawBlade();
+        popMatrix();
+    }
+    popMatrix();
     
 } // end draw();
 
@@ -423,6 +484,10 @@ function init() {
     cylinder = createModel(uvCylinder());    //    uvCone(), uvCylinder(), and cube()
     cube = createModel(cube());              //    are defined in basic-object-models-IFS.js
  
+    if (typeof teapotModel !== "undefined") {
+        teapot = createModel(teapotModel);
+    }
+ 
     draw();
 }
 
@@ -450,4 +515,3 @@ function init() {
 </div>
 </body>
 </html>
-
